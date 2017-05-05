@@ -1,0 +1,83 @@
+---
+output:
+  md_document:
+    variant: markdown_github
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+```
+
+# gasexchangeR
+
+gasexchangeR is the interface for data obtained by the photosynthetic measurement systems by LI-COR (LI6400, LI6400XT, LI6800, ...).
+It has two main goals:
+
+* Read easily the gasexchange data into data frames.
+
+* Provide visual summary for checking the status during the measurement.
+
+You can install:
+
+* the latest development version from github with
+
+```R
+# install.packages("devtools") # if not installed
+devtools::install_github("KeachMurakami/gasexchangeR")
+```
+
+
+## Reading
+
+`gasexchangeR` implements the following verb for reading LI6xxx data:
+
+* `read_licor()`: read `.txt` format data obtained by LI6xxx into data frames.
+    * warning messages usually originate from parsing procedure for the file header.
+
+```{r demo_read}
+library(gasexchangeR)
+
+sample_single <- "https://raw.githubusercontent.com/KeachMurakami/gasexchangeR/master/R/LI6400.txt"
+sample_multi <- c("https://raw.githubusercontent.com/KeachMurakami/gasexchangeR/master/R/LI6400.txt",
+                  "https://raw.githubusercontent.com/KeachMurakami/gasexchangeR/master/R/LI6400XT.txt")
+
+# simple read
+read_licor(file = sample_single)
+
+# include logs for changes in conditions
+read_licor(file = sample_single, info_log = T)
+
+# read multiple files into a data frame
+read_licor(file = sample_multi)
+```
+
+
+## Visualizations
+
+`gasexchangeR` implements the following verbs useful for visualizations:
+
+* `li_scat()`: view a relationship between variables
+    * `li_scat_light()`:
+    * `li_scat_co2()`:
+    * `li_scat_h2o()`:
+    * `li_scat_temp()`:
+* `li_course()`: view time course of a variable
+* `li_check()`: view primitive plots to check the environmental stability during the measurement
+
+```{r demo_plot}
+li_scat(file = sample_multi, color = "VpdL")
+li_course(file = sample_multi, color = "Ci")
+```
+
+
+## Session information
+
+```{r sessioninfo}
+devtools::session_info()
+```

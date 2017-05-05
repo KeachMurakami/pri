@@ -1,0 +1,7 @@
+exportPattern("^[[:alpha:]]+")
+
+import(tidyverse)
+import(magrittr)
+import(stringr)
+import(readxl)
+import(tools)
