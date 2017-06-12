@@ -9,60 +9,64 @@ add_dimension <-
 
 read_jpg <-
   function(files, ...){
-    EBImage::readImage(files, type = "jpg", ...)
+
+        EBImage::readImage(files, type = "jpg", ...)
   }
 
-read_img <-
-  if(img_type %in% c("jpg", "JPG", "jpeg", "JPEG")){
-    function(files){
-      if(length(dim(read_jpg(files[1]))) == 2){
-        if(length(files) == 1){
-          read_jpg(files)@.Data %>%
-            add_dimension
-        } else {
-          read_jpg(files)@.Data
+set_read_img <-
+  function(img_type = ""){
+    read_img <<-
+      if(img_type %in% c("jpg", "JPG", "jpeg", "JPEG")){
+        function(files){
+          if(length(dim(read_jpg(files[1]))) == 2){
+            if(length(files) == 1){
+              read_jpg(files)@.Data %>%
+                add_dimension
+            } else {
+              read_jpg(files)@.Data
+            }
+          } else if(length(files) == 1){
+            read_jpg(files)@.Data[,,2, drop = F]
+          } else {
+            read_jpg(files)@.Data[,,2,]
+          }
         }
-      } else if(length(files) == 1){
-        read_jpg(files)@.Data[,,2, drop = F]
       } else {
-        read_jpg(files)@.Data[,,2,]
-      }
-    }
-  } else {
-    function(files){
-      if(length(dim(EBImage::readImage(files[1]))) == 2){
-        if(length(files) == 1){
-          EBImage::readImage(files)@.Data %>%
-            add_dimension
-        } else {
-          EBImage::readImage(files)@.Data[,,2]
+        function(files){
+          if(length(dim(EBImage::readImage(files[1]))) == 2){
+            if(length(files) == 1){
+              EBImage::readImage(files)@.Data %>%
+                add_dimension
+            } else {
+              EBImage::readImage(files)@.Data[,,2]
+            }
+          } else if(length(files) == 1){
+            EBImage::readImage(files)@.Data[,,2] %>%
+              add_dimension
+          } else {
+            EBImage::readImage(files)@.Data[,,2,]
+          }
         }
-      } else if(length(files) == 1){
-        EBImage::readImage(files)@.Data[,,2] %>%
-          add_dimension
-      } else {
-        EBImage::readImage(files)@.Data[,,2,]
       }
-    }
-  }
 
-read_imgs <-
-  if(img_type %in% c("jpg", "JPG", "jpeg", "JPEG")){
-    function(files){
-      if(length(dim(read_jpg(files[1]))) == 2){
-        read_jpg(files)@.Data
+    read_imgs <<-
+      if(img_type %in% c("jpg", "JPG", "jpeg", "JPEG")){
+        function(files){
+          if(length(dim(read_jpg(files[1]))) == 2){
+            read_jpg(files)@.Data
+          } else {
+            read_jpg(files)@.Data[,,2,]
+          }
+        }
       } else {
-        read_jpg(files)@.Data[,,2,]
+        function(files){
+          if(length(dim(EBImage::readImage(files[1]))) == 2){
+            EBImage::readImage(files)@.Data
+          } else {
+            EBImage::readImage(files)@.Data[,,2,]
+          }
+        }
       }
-    }
-  } else {
-    function(files){
-      if(length(dim(EBImage::readImage(files[1]))) == 2){
-        EBImage::readImage(files)@.Data
-      } else {
-        EBImage::readImage(files)@.Data[,,2,]
-      }
-    }
   }
 
 read_imgs_mean <-
