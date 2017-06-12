@@ -169,12 +169,12 @@ ref_plane_all <-
   function(imgs, size = 5){
     rows <- c((min(ref_x) - size):(min(ref_x) + size), (max(ref_x) - size):(max(ref_x) + size))
     cols <- c((min(ref_y) - size):(min(ref_y) + size), (max(ref_y) - size):(max(ref_y) + size))
-    
+
     ref_df <-
       imgs %>%
       array2df %>%
       filter(row %in% rows, col %in% cols)
-    
+
     reg_plane <-
       ref_df %>%
       group_by(time) %>%
@@ -186,7 +186,7 @@ ref_plane_all <-
           set_names(nm = c("offset", "Col", "Row"))
       }) %>%
       ungroup
-    
+
     expand.grid(row = 1:dim(imgs)[1], col = 1:dim(imgs)[2], time = unique(reg_plane$time)) %>%
       left_join(., reg_plane, by = "time") %>%
       transmute(row, col, time,
@@ -370,15 +370,14 @@ binning <-
 
     array_3d[row_out, col_out, 1:dim_[3], drop = F] %>%
       array2df %>%
-      mutate(row = row_group[row],
-             col = col_group[col],
-             blocks = paste0(col, "_", row, "_", time)) %>%
-      group_by(blocks) %>%
-      mutate(value = mean(value)) %>%
-      distinct(blocks, .keep_all = T) %>%
-      ungroup %>%
-      select(-blocks) %>%
-      arrange(time, col, row)
+      dplyr::mutate(row = row_group[row],
+                    col = col_group[col],
+                    blocks = paste0(col, "_", row, "_", time)) %>%
+      dplyr::group_by(row, col, time, blocks) %>%
+      dplyr::summarize(value = mean(value)) %>%
+      dplyr::ungroup %>%
+      dplyr::select(-blocks) %>%
+      dplyr::arrange(time, col, row)
   }
 
 
