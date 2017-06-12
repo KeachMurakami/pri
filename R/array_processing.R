@@ -165,7 +165,36 @@ see_roi <-
       print
   }
 
-ref_plane <-
+ref_plane_all <-
+  function(imgs, size = 5){
+    rows <- c((min(ref_x) - size):(min(ref_x) + size), (max(ref_x) - size):(max(ref_x) + size))
+    cols <- c((min(ref_y) - size):(min(ref_y) + size), (max(ref_y) - size):(max(ref_y) + size))
+    
+    ref_df <-
+      imgs %>%
+      array2df %>%
+      filter(row %in% rows, col %in% cols)
+    
+    reg_plane <-
+      ref_df %>%
+      group_by(time) %>%
+      do({
+        lm(., formula = value ~ row + col) %>%
+          broom::tidy() %>%
+          select(term, estimate) %>%
+          spread(term, estimate) %>%
+          set_names(nm = c("offset", "Col", "Row"))
+      }) %>%
+      ungroup
+    
+    expand.grid(row = 1:dim(imgs)[1], col = 1:dim(imgs)[2], time = unique(reg_plane$time)) %>%
+      left_join(., reg_plane, by = "time") %>%
+      transmute(row, col, time,
+                value = row * Row + col * Col + offset) %>%
+      df2array
+  }
+
+ref_plane_roi <-
   function(imgs, size = 5){
     rows <- c((min(ref_x) - size):(min(ref_x) + size), (max(ref_x) - size):(max(ref_x) + size))
     cols <- c((min(ref_y) - size):(min(ref_y) + size), (max(ref_y) - size):(max(ref_y) + size))
@@ -194,6 +223,15 @@ ref_plane <-
       df2array
   }
 
+to_refl_all <-
+  function(imgs, ...){
+    imgs[,, 1:dim(imgs)[3], drop = F] / ref_plane_all(imgs, ...)
+  }
+
+to_refl_roi <-
+  function(imgs, ...){
+    imgs[roi_x, roi_y, 1:dim(imgs)[3], drop = F] / ref_plane(imgs, ...)
+  }
 
 pri_processing <-
   function(list_imgs, ...){
