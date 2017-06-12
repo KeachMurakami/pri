@@ -375,7 +375,7 @@ binning <-
                     blocks = paste0(col, "_", row, "_", time)) %>%
       dplyr::group_by(row, col, time, blocks) %>%
       dplyr::summarize(value = mean(value)) %>%
-      dplyr::ungroup %>%
+      dplyr::ungroup() %>%
       dplyr::select(-blocks) %>%
       dplyr::arrange(time, col, row)
   }
