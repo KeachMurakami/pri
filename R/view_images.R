@@ -42,10 +42,10 @@ overlay <-
 check_position <-
   function(img_a, img_b, ...){
     warning("Deprecated: please use `check_overlay()`")
-    overlay(img_a, affiner(img_b), ...)
+    overlay(img_a, img_b, ...)
   }
 
 check_overlay <-
   function(img_a, img_b, ...){
-    overlay(img_a, affiner(img_b), ...)
+    overlay(img_a, img_b, ...)
   }
