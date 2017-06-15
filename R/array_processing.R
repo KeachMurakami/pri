@@ -150,7 +150,9 @@ set_roi <-
     roi_y <<- roi_xy[3]:roi_xy[4]
     ref_x <<- ref_xy[1]:ref_xy[2]
     ref_y <<- ref_xy[3]:ref_xy[4]
-    if(sum(range(roi_x %in% ref_x), range(roi_y %in% ref_y)) != 4) cat("ERRPR: refelence region does not cover ROI.")
+    if(sum(range(roi_x %in% ref_x), range(roi_y %in% ref_y)) != 4){
+      cat("Warning: refelence region does not cover ROI.")
+    }
   }
 
 get_roi <-
@@ -165,32 +167,33 @@ see_roi <-
       print
   }
 
+get_reg_plane <-
+  function(imgs, rows, cols){
+    imgs %>%
+      array2df %>%
+      filter(row %in% rows, col %in% cols) %>%
+      group_by(time) %>%
+      do({
+        lm(., formula = value ~ row + col) %>%
+          broom::tidy() %>%
+          dplyr::select(term, estimate) %>%
+          tidyr::spread(term, estimate) %>%
+          set_names(nm = c("offset", "Col", "Row"))
+      }) %>%
+      ungroup
+  }
+
 ref_plane_all <-
   function(imgs, size = 5){
     rows <- c((min(ref_x) - size):(min(ref_x) + size), (max(ref_x) - size):(max(ref_x) + size))
     cols <- c((min(ref_y) - size):(min(ref_y) + size), (max(ref_y) - size):(max(ref_y) + size))
 
-    ref_df <-
-      imgs %>%
-      array2df %>%
-      filter(row %in% rows, col %in% cols)
-
-    reg_plane <-
-      ref_df %>%
-      group_by(time) %>%
-      do({
-        lm(., formula = value ~ row + col) %>%
-          broom::tidy() %>%
-          select(term, estimate) %>%
-          spread(term, estimate) %>%
-          set_names(nm = c("offset", "Col", "Row"))
-      }) %>%
-      ungroup
+    reg_plane <- get_reg_plane(imgs, rows, cols)
 
     expand.grid(row = 1:dim(imgs)[1], col = 1:dim(imgs)[2], time = unique(reg_plane$time)) %>%
-      left_join(., reg_plane, by = "time") %>%
-      transmute(row, col, time,
-                value = row * Row + col * Col + offset) %>%
+      dplyr::left_join(., reg_plane, by = "time") %>%
+      dplyr::transmute(row, col, time,
+                       value = row * Row + col * Col + offset) %>%
       df2array
   }
 
@@ -199,22 +202,7 @@ ref_plane_roi <-
     rows <- c((min(ref_x) - size):(min(ref_x) + size), (max(ref_x) - size):(max(ref_x) + size))
     cols <- c((min(ref_y) - size):(min(ref_y) + size), (max(ref_y) - size):(max(ref_y) + size))
 
-    ref_df <-
-      imgs %>%
-      array2df %>%
-      filter(row %in% rows, col %in% cols)
-
-    reg_plane <-
-      ref_df %>%
-      group_by(time) %>%
-      do({
-        lm(., formula = value ~ row + col) %>%
-          broom::tidy() %>%
-          select(term, estimate) %>%
-          spread(term, estimate) %>%
-          set_names(nm = c("offset", "Col", "Row"))
-      }) %>%
-      ungroup
+    reg_plane <- get_reg_plane(imgs, rows, cols)
 
     expand.grid(row = roi_x, col = roi_y, time = unique(reg_plane$time)) %>%
       left_join(., reg_plane, by = "time") %>%
@@ -223,23 +211,55 @@ ref_plane_roi <-
       df2array
   }
 
+to_reflectance <-
+  function(imgs, roi = T, plane = T, ...){
+    if(roi){
+      if(plane){
+        to_refl_roi(imgs, ...)
+      } else {
+        to_refl_roi_by_point(imgs, ...)
+      }
+    } else {
+      if(plane){
+        to_refl_all(imgs, ...)
+      } else {
+        to_refl_all_by_point(imgs, ...)
+      }
+    }
+  }
+
+to_refl_roi <-
+  function(imgs, ...){
+    imgs[roi_x, roi_y, 1:dim(imgs)[3], drop = F] / ref_plane_roi(imgs, ...)
+  }
+
 to_refl_all <-
   function(imgs, ...){
     imgs[,, 1:dim(imgs)[3], drop = F] / ref_plane_all(imgs, ...)
   }
 
-to_refl_roi <-
+to_refl_roi_by_point <-
   function(imgs, ...){
-    imgs[roi_x, roi_y, 1:dim(imgs)[3], drop = F] / ref_plane(imgs, ...)
+    ref_val <- apply(imgs[ref_x, ref_y,], MARGIN = 3, mean)
+    ref_array <- array(rep(ref_val, each = length(roi_x) * length(roi_y)), dim = c(length(roi_x), length(roi_y), dim(imgs)[3]))
+    imgs[roi_x, roi_y, (1:dim(imgs)[3]), drop = F]  / ref_array
   }
+
+to_refl_all_by_point <-
+  function(imgs, ...){
+    ref_val <- apply(imgs[ref_x, ref_y,], MARGIN = 3, mean)
+    ref_array <- array(rep(ref_val, each = dim(imgs)[1] * dim(imgs)[2]), dim = dim(imgs))
+    imgs[,, (1:dim(imgs)[3]), drop = F]  / ref_array
+  }
+
 
 pri_processing <-
   function(list_imgs, ...){
     img_530 <- list_imgs[[1]]
     img_570 <- list_imgs[[2]] %>% affiner
 
-    refl_530_roi <- img_530[roi_x, roi_y, 1:dim(img_530)[3], drop = F] / ref_plane(img_530, ...)
-    refl_570_roi <- img_570[roi_x, roi_y, 1:dim(img_570)[3], drop = F] / ref_plane(img_570, ...)
+    refl_530_roi <- img_530[roi_x, roi_y, 1:dim(img_530)[3], drop = F] / ref_plane_roi(img_530, ...)
+    refl_570_roi <- img_570[roi_x, roi_y, 1:dim(img_570)[3], drop = F] / ref_plane_roi(img_570, ...)
 
     return(calc_pri(refl_530_roi, refl_570_roi))
   }
@@ -249,8 +269,8 @@ refl_processing <-
     img_530 <- list_imgs[[1]]
     img_570 <- list_imgs[[2]] %>% affiner
 
-    refl_530_roi <- img_530[roi_x, roi_y, 1:dim(img_530)[3], drop = F] / ref_plane(img_530, ...)
-    refl_570_roi <- img_570[roi_x, roi_y, 1:dim(img_570)[3], drop = F] / ref_plane(img_570, ...)
+    refl_530_roi <- img_530[roi_x, roi_y, 1:dim(img_530)[3], drop = F] / ref_plane_roi(img_530, ...)
+    refl_570_roi <- img_570[roi_x, roi_y, 1:dim(img_570)[3], drop = F] / ref_plane_roi(img_570, ...)
 
     return(reflectance = list(refl_530_roi, refl_570_roi))
   }
