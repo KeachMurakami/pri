@@ -14,6 +14,11 @@ view <-
     }
   }
 
+afn_view <-
+  function(input, ...){
+  input %>% affiner %>% view(...)
+}
+
 check_roi <-
   function(img, col_ref = "white", col_roi = "red", ...){
     view(img, ...)
