@@ -49,3 +49,18 @@ check_overlay <-
   function(img_a, img_b, ...){
     overlay(img_a, img_b, ...)
   }
+
+
+multi_check <-
+  function(img_a, img_b, preparing){
+    view(img_a, browser = preparing)
+    text(x = 0, y = 0, adj = c(0, 1), "  530 nm", col = "white")
+    affiner(img_b) %>% view(., browser = preparing)
+    text(x = 0, y = 0, adj = c(0, 1), "  570 nm", col = "white")
+
+    check_roi(img_a, browser = preparing)
+    check_roi(affiner(img_b), browser = preparing)
+    to_refl_all(img_a) %>% view(browser = preparing)
+    to_refl_all(affiner(img_b)) %>% view(browser = preparing)
+    check_overlay(img_a, affiner(img_b), browser = preparing)
+  }
