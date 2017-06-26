@@ -38,6 +38,13 @@ edge_filter <-
 overlay <-
   function(img_a, img_b, alpha = 1, ...){
     third_ch <- matrix(0, nrow = nrow(img_a), ncol = ncol(img_a))
+    EBImage::rgbImage(red = img_a[,,1] * alpha, green = img_b[,,1] * alpha, blue = third_ch) %>%
+      view(...)
+  }
+
+overlay_edge <-
+  function(img_a, img_b, alpha = 1, ...){
+    third_ch <- matrix(0, nrow = nrow(img_a), ncol = ncol(img_a))
     img_a <- edge_filter(img_a)
     img_b <- edge_filter(img_b)
     EBImage::rgbImage(red = img_a[,,1] * alpha, green = img_b[,,1] * alpha, blue = third_ch) %>%
@@ -51,8 +58,12 @@ check_position <-
   }
 
 check_overlay <-
-  function(img_a, img_b, ...){
-    overlay(img_a, img_b, ...)
+  function(img_a, img_b, edge = F, ...){
+    if(edge){
+      overlay_edge(img_a, img_b, ...)
+    } else {
+      overlay(img_a, img_b, ...)
+    }
   }
 
 
@@ -68,4 +79,33 @@ multi_check <-
     to_refl_all(img_a) %>% view(browser = preparing)
     to_refl_all(affiner(img_b)) %>% view(browser = preparing)
     check_overlay(img_a, affiner(img_b), browser = preparing)
+  }
+
+
+check_corners <-
+  function(array_3d, size = 5, plot = T){
+    roi_x_ <- range(roi_x)
+    roi_y_ <- range(roi_y)
+    z_range <- 1:dim(array_3d)[3]
+    
+    left <- (roi_x_[1] - size):(roi_x_[1] + size)
+    right <- (roi_x_[2] - size):(roi_x_[2] + size)
+    upper <- (roi_y_[1] - size):(roi_y_[1] + size)
+    lower <- (roi_y_[2] - size):(roi_y_[2] + size)
+    
+    results <-
+      bind_rows(
+        array_3d[left, upper,] %>% z_summary %>% mutate(position = "left_upper", z = z_range),
+        array_3d[left, lower,] %>% z_summary %>% mutate(position = "left_lower", z = z_range),
+        array_3d[right, upper,] %>% z_summary %>% mutate(position = "right_upper", z = z_range),
+        array_3d[right, lower,] %>% z_summary %>% mutate(position = "right_lower", z = z_range)
+      )
+    
+    if(plot){
+      results %>%
+        ggplot(aes(z, mean, col = position)) +
+        geom_point()
+    } else {
+      return(results)
+    }
   }
