@@ -1,5 +1,5 @@
 view <-
-  function(input, browser = T){
+  function(input, browser = T, ...){
     if(browser){
       output_method <- "browser"
     } else {
@@ -8,9 +8,9 @@ view <-
     if(class(input) == "character"){
       input %>%
         EBImage::readImage() %>%
-        EBImage::display(method = output_method)
+        EBImage::display(method = output_method, ...)
     } else {
-      EBImage::display(input, method = output_method)
+      EBImage::display(input, method = output_method, ...)
     }
   }
 
@@ -19,14 +19,80 @@ afn_view <-
   input %>% affiner %>% view(...)
 }
 
-check_roi <-
+px_timecourse <-
+  function(array_3d, x, y, size){
+    array_3d[(x-size):(x+size), (y-size):(y+size), , drop = F] %>%
+    {data_frame(mean = apply(., 3, mean), sd = apply(., 3, sd))} %>%
+      mutate(position = paste0("(", x-size, ":", x+size, ", ", y-size, ":", y+size, ")"),
+             z = seq_along(position))
+  }
+
+
+px_timecourse_plot <-
+  function(df){
+    df %>%
+      ggplot(aes(z, mean, group = position)) +
+      geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd, fill = position), alpha = .25) +
+      geom_point(aes(color = position))
+  }
+
+timecourse <-
+  function(array_3d, x_centers, y_centers, size, plot = T){
+    results <-
+      expand.grid(x = x_centers, y = y_centers) %>%
+      mutate(id = seq_along(x)) %>%
+      split(.$id) %>%
+      map_df(~ px_timecourse(array_3d, x = .$x, y = .$y, size))
+    
+    if(plot){
+      results %>% px_timecourse_plot
+    } else {
+      return(results)
+    }
+  }
+
+
+px_position <-
+  function(array_3d, x, y, size){
+    array_3d <- array_3d[,,, drop = F]
+    array_3d[(x-size):(x+size), (y-size):(y+size),] <- array_3d[(x-size):(x+size), (y-size):(y+size),] * Inf
+    return(array_3d)
+  }
+
+position <-
+  function(array_3d, x_centers, y_centers, size, plot = T, ...){
+    points <-
+      expand.grid(x = x_centers, y = y_centers) %>%
+      mutate(id = seq_along(x))
+    
+    for(i in points$id){
+      array_3d <- px_position(array_3d, points[i, "x"], points[i, "y"], size)
+    }
+    
+    if(plot){
+      view(array_3d, ...)
+    } else {
+      return(array_3d)
+    }
+  }
+
+check_fov <-
   function(img, col_ref = "white", col_roi = "red", ...){
     view(img, ...)
-    rect(xleft = min(ref_x), xright = max(ref_x), ytop = min(ref_y), ybottom = max(ref_y),
+    rect(xleft = min(ref_x), xright = max(ref_x),
+         ytop = min(ref_y), ybottom = max(ref_y),
          border = col_ref, lwd = 3)
-    rect(xleft = min(roi_x), xright = max(roi_x), ytop = min(roi_y), ybottom = max(roi_y),
+    rect(xleft = min(roi_x), xright = max(roi_x),
+         ytop = min(roi_y), ybottom = max(roi_y),
          border = col_roi, lwd = 3)
   }
+
+check_roi <-
+  function(img, col_ref = "white", col_roi = "red", ...){
+    warning("Deprecated: please use `check_fov()`")
+    check_fov(img, col_ref, col_roi, ...)
+  }
+
 
 edge_filter <-
   function(img){
@@ -79,33 +145,4 @@ multi_check <-
     to_refl_all(img_a) %>% view(browser = preparing)
     to_refl_all(affiner(img_b)) %>% view(browser = preparing)
     check_overlay(img_a, affiner(img_b), browser = preparing)
-  }
-
-
-check_corners <-
-  function(array_3d, size = 5, plot = T){
-    roi_x_ <- range(roi_x)
-    roi_y_ <- range(roi_y)
-    z_range <- 1:dim(array_3d)[3]
-    
-    left <- (roi_x_[1] - size):(roi_x_[1] + size)
-    right <- (roi_x_[2] - size):(roi_x_[2] + size)
-    upper <- (roi_y_[1] - size):(roi_y_[1] + size)
-    lower <- (roi_y_[2] - size):(roi_y_[2] + size)
-    
-    results <-
-      bind_rows(
-        array_3d[left, upper,] %>% z_summary %>% mutate(position = "left_upper", z = z_range),
-        array_3d[left, lower,] %>% z_summary %>% mutate(position = "left_lower", z = z_range),
-        array_3d[right, upper,] %>% z_summary %>% mutate(position = "right_upper", z = z_range),
-        array_3d[right, lower,] %>% z_summary %>% mutate(position = "right_lower", z = z_range)
-      )
-    
-    if(plot){
-      results %>%
-        ggplot(aes(z, mean, col = position)) +
-        geom_point()
-    } else {
-      return(results)
-    }
   }
