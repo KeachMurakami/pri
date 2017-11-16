@@ -22,14 +22,20 @@ afn_view <-
 px_timecourse <-
   function(array_3d, x, y, size){
     array_3d[(x-size):(x+size), (y-size):(y+size), , drop = F] %>%
-    {data_frame(mean = apply(., 3, mean), sd = apply(., 3, sd))} %>%
+    {data_frame(mean = apply(., 3, mean), median = apply(., 3, median), sd = apply(., 3, sd))} %>%
       mutate(position = paste0("(", x-size, ":", x+size, ", ", y-size, ":", y+size, ")"),
              z = seq_along(position))
   }
 
 
 px_timecourse_plot <-
-  function(df){
+  function(df, median = F){
+    if(median){
+      df %>%
+        ggplot(aes(z, median, group = position)) +
+        geom_ribbon(aes(ymin = median - sd, ymax = median + sd, fill = position), alpha = .25) +
+        geom_point(aes(color = position))
+    }
     df %>%
       ggplot(aes(z, mean, group = position)) +
       geom_ribbon(aes(ymin = mean - sd, ymax = mean + sd, fill = position), alpha = .25) +
