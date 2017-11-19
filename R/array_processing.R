@@ -14,7 +14,7 @@ read_jpg <-
   }
 
 set_read_img <-
-  function(img_type = ""){
+  function(img_type = "", band = 2){
     read_img <<-
       if(img_type %in% c("jpg", "JPG", "jpeg", "JPEG")){
         function(files){
@@ -38,13 +38,13 @@ set_read_img <-
               EBImage::readImage(files)@.Data %>%
                 add_dimension
             } else {
-              EBImage::readImage(files)@.Data[,,2]
+              EBImage::readImage(files)@.Data[,,band]
             }
           } else if(length(files) == 1){
-            EBImage::readImage(files)@.Data[,,2] %>%
+            EBImage::readImage(files)@.Data[,,band] %>%
               add_dimension
           } else {
-            EBImage::readImage(files)@.Data[,,2,]
+            EBImage::readImage(files)@.Data[,,band,]
           }
         }
       }
@@ -55,7 +55,7 @@ set_read_img <-
           if(length(dim(read_jpg(files[1]))) == 2){
             read_jpg(files)@.Data
           } else {
-            read_jpg(files)@.Data[,,2,]
+            read_jpg(files)@.Data[,,band,]
           }
         }
       } else {
@@ -63,7 +63,7 @@ set_read_img <-
           if(length(dim(EBImage::readImage(files[1]))) == 2){
             EBImage::readImage(files)@.Data
           } else {
-            EBImage::readImage(files)@.Data[,,2,]
+            EBImage::readImage(files)@.Data[,,band,]
           }
         }
       }
@@ -320,17 +320,27 @@ batch_pread_imgs <-
 ### array handling
 
 z_summary <-
-  function(array_3d){
-    data_frame(mean = apply(array_3d, 3, mean), sd = apply(array_3d, 3, sd))
+  function(array_3d, time = F){
+    results <-
+      data_frame(mean = apply(array_3d, 3, mean), sd = apply(array_3d, 3, sd))
+    if(time[1]){
+      results %>%
+        mutate(time = time)
+    }
   }
 
 array2df <-
-  function(array_3d){
+  function(array_3d, time = F){
     dim_ <- dim(array_3d)
     row = rep(1:dim_[1], times = dim_[3] * dim_[2])
     col = rep(rep(1:dim_[2], each = dim_[1]), times = dim_[3])
-    time = rep(1:dim_[3], each = dim_[1] * dim_[2])
-
+    
+    if(time[1]){
+      time = rep(time, each = dim_[1] * dim_[2])
+    } else {
+      time = rep(1:dim_[3], each = dim_[1] * dim_[2])
+    }
+    
     array_3d %>%
       as.vector %>%
       data_frame(value = ., row, col, time) %>%
@@ -338,7 +348,7 @@ array2df <-
   }
 
 df2array <-
-  function(df_3d){
+  function(df_3d, time = F){
     dimension <-
       df_3d %>%
       {c(length(unique(.$row)), length(unique(.$col)), length(unique(.$time)))}
@@ -404,52 +414,68 @@ binning <-
 
 ### visualize
 
-cut_sect <-
-  function(array_3d, by_dim = "x", by_index = 1){
-    dim_3d <- dim(array_3d)
-    if(by_dim == "x"){
-      array_3d[by_index, ,] %>%
-        as.vector %>%
-        data_frame(value = .) %>%
-        mutate(x = by_index,
-               y = rep(1:dim_3d[2], times = dim_3d[3]),
-               z = rep(1:dim_3d[3], each = dim_3d[2]))
-    } else if(by_dim == "y"){
-      array_3d[, by_index ,] %>%
-        as.vector %>%
-        data_frame(value = .) %>%
-        mutate(x = rep(1:dim_3d[1], times = dim_3d[3]),
-               y = by_index,
-               z = rep(1:dim_3d[3], each = dim_3d[1]))
-    }
+# cut_sect <-
+#   function(array_3d, by_dim = "x", by_index = 1){
+#     dim_3d <- dim(array_3d)
+#     if(by_dim == "x"){
+#       array_3d[by_index, ,] %>%
+#         as.vector %>%
+#         data_frame(value = .) %>%
+#         mutate(x = by_index,
+#                y = rep(1:dim_3d[2], times = dim_3d[3]),
+#                z = rep(1:dim_3d[3], each = dim_3d[2]))
+#     } else if(by_dim == "y"){
+#       array_3d[, by_index ,] %>%
+#         as.vector %>%
+#         data_frame(value = .) %>%
+#         mutate(x = rep(1:dim_3d[1], times = dim_3d[3]),
+#                y = by_index,
+#                z = rep(1:dim_3d[3], each = dim_3d[1]))
+#     }
+#   }
+# 
+# plot_sect <-
+#   function(df, sect = "x"){
+#     if(sect == "x"){
+#       ggplot(df, aes(x = z, y = value, col = factor(x), group = x)) +
+#         geom_point(alpha = .25) +
+#         geom_line(alpha = .25) +
+#         guides(col = F)
+#     } else {
+#       ggplot(df, aes(x = z, y = value, col = factor(y), group = y)) +
+#         geom_point(alpha = .25) +
+#         geom_line(alpha = .25) +
+#         guides(col = F)
+#     }
+#   }
+# 
+# plot_3d_sect <-
+#   function(df, sect = "x"){
+#     sect_ <- ifelse(sect == "x", "y", "x")
+#     z_persp <-
+#       df %>%
+#       select_(paste0("-", sect)) %>%
+#       tidyr::spread_(sect_, "value") %>%
+#       select(-z) %>%
+#       as.matrix
+#     x_persp <- unique(df$z)
+#     y_persp <- unique(df[, sect_] %>% unlist)
+#   }
+
+timecourse_xy <-
+  function(df){
+    df %>% 
+      ggplot(aes(time, value)) +
+      geom_point() +
+      facet_grid(col ~ row)
   }
 
-plot_sect <-
-  function(df, sect = "x"){
-    if(sect == "x"){
-      ggplot(df, aes(x = z, y = value, col = factor(x), group = x)) +
-        geom_point(alpha = .25) +
-        geom_line(alpha = .25) +
-        guides(col = F)
-    } else {
-      ggplot(df, aes(x = z, y = value, col = factor(y), group = y)) +
-        geom_point(alpha = .25) +
-        geom_line(alpha = .25) +
-        guides(col = F)
-    }
-  }
-
-plot_3d_sect <-
-  function(df, sect = "x"){
-    sect_ <- ifelse(sect == "x", "y", "x")
-    z_persp <-
-      df %>%
-      select_(paste0("-", sect)) %>%
-      tidyr::spread_(sect_, "value") %>%
-      select(-z) %>%
-      as.matrix
-    x_persp <- unique(df$z)
-    y_persp <- unique(df[, sect_] %>% unlist)
+timecourse_xy2 <-
+  function(df){
+    df %>% 
+      ggplot(aes(time, value, col = factor(col), shape = factor(row))) +
+      geom_point() +
+      guides(col = F, shape = F)
   }
 
 shade_box <-
