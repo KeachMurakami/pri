@@ -26,9 +26,9 @@ set_read_img <-
               read_jpg(files)@.Data
             }
           } else if(length(files) == 1){
-            read_jpg(files)@.Data[,,2, drop = F]
+            read_jpg(files)@.Data[,,band, drop = F]
           } else {
-            read_jpg(files)@.Data[,,2,]
+            read_jpg(files)@.Data[,,band,]
           }
         }
       } else {
@@ -334,13 +334,13 @@ array2df <-
     dim_ <- dim(array_3d)
     row = rep(1:dim_[1], times = dim_[3] * dim_[2])
     col = rep(rep(1:dim_[2], each = dim_[1]), times = dim_[3])
-    
+
     if(time[1]){
       time = rep(time, each = dim_[1] * dim_[2])
     } else {
       time = rep(1:dim_[3], each = dim_[1] * dim_[2])
     }
-    
+
     array_3d %>%
       as.vector %>%
       data_frame(value = ., row, col, time) %>%
@@ -433,7 +433,7 @@ binning <-
 #                z = rep(1:dim_3d[3], each = dim_3d[1]))
 #     }
 #   }
-# 
+#
 # plot_sect <-
 #   function(df, sect = "x"){
 #     if(sect == "x"){
@@ -448,7 +448,7 @@ binning <-
 #         guides(col = F)
 #     }
 #   }
-# 
+#
 # plot_3d_sect <-
 #   function(df, sect = "x"){
 #     sect_ <- ifelse(sect == "x", "y", "x")
@@ -464,7 +464,7 @@ binning <-
 
 timecourse_xy <-
   function(df){
-    df %>% 
+    df %>%
       ggplot(aes(time, value)) +
       geom_point() +
       facet_grid(col ~ row)
@@ -472,7 +472,7 @@ timecourse_xy <-
 
 timecourse_xy2 <-
   function(df){
-    df %>% 
+    df %>%
       ggplot(aes(time, value, col = factor(col), shape = factor(row))) +
       geom_point() +
       guides(col = F, shape = F)
